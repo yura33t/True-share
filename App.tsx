@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
-import { Profile, ViewState, Post } from './types';
+import { Profile, ViewState } from './types';
 import { Auth } from './components/Auth';
 import { Feed } from './components/Feed';
 import { Navigation } from './components/Navigation';
@@ -9,16 +9,17 @@ import { ProfileView } from './components/ProfileView';
 import { MessagesView } from './components/MessagesView';
 import { SearchView } from './components/SearchView';
 import { EditProfile } from './components/EditProfile';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(() => {
-    const saved = localStorage.getItem('ts_profile');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('ts_profile');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
   });
   
-  // Глобальный кэш данных для мгновенного переключения
   const [cachedPosts, setCachedPosts] = useState<any[]>([]);
   const [currentView, setCurrentView] = useState<ViewState>('feed');
   const [initializing, setInitializing] = useState(true);
@@ -28,19 +29,31 @@ const App: React.FC = () => {
   const [feedFilter, setFeedFilter] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (data) {
-      setProfile(data);
-      localStorage.setItem('ts_profile', JSON.stringify(data));
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (data) {
+        setProfile(data);
+        localStorage.setItem('ts_profile', JSON.stringify(data));
+      }
+    } catch (e) {
+      console.error("Profile fetch error:", e);
     }
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      if (s) fetchProfile(s.user.id);
-      setInitializing(false);
-    });
+    const initApp = async () => {
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        setSession(s);
+        if (s) await fetchProfile(s.user.id);
+      } catch (err) {
+        console.error("Initialization failed:", err);
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    initApp();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
@@ -61,10 +74,15 @@ const App: React.FC = () => {
     window.location.reload();
   };
 
-  if (initializing && !profile) {
+  if (initializing) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1 }} className="w-8 h-8 bg-white rounded-full" />
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        <motion.div 
+          animate={{ rotate: 360 }} 
+          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+          className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full mb-4"
+        />
+        <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Initializing</p>
       </div>
     );
   }
@@ -72,7 +90,7 @@ const App: React.FC = () => {
   if (!session) return <Auth />;
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black font-sans">
+    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black font-sans overflow-x-hidden">
       <div className="flex flex-col md:flex-row max-w-6xl mx-auto min-h-screen relative">
         <Navigation 
             currentView={currentView} 
@@ -84,8 +102,8 @@ const App: React.FC = () => {
             profile={profile} 
             onLogout={handleLogout} 
         />
-        <main className="flex-1 border-x border-white/5 relative">
-          <div className="pb-20 md:pb-0">
+        <main className="flex-1 border-x border-white/5 relative bg-black">
+          <div className="pb-20 md:pb-0 h-full overflow-y-auto no-scrollbar">
               {currentView === 'feed' && (
                 <Feed 
                     profile={profile} 
@@ -108,7 +126,7 @@ const App: React.FC = () => {
               {currentView === 'search' && <SearchView onNavigateToProfile={(id) => { setTargetProfileId(id); setCurrentView('profile'); }} />}
               {currentView === 'edit-profile' && profile && (
                 <EditProfile profile={profile} onSave={async () => {
-                  await fetchProfile(profile.id);
+                  if (profile) await fetchProfile(profile.id);
                   setCurrentView('profile');
                 }} />
               )}

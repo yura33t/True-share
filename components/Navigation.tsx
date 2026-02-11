@@ -15,14 +15,15 @@ export const Navigation: React.FC<Props> = ({ currentView, setView, profile, onL
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const navItems = [
-    { id: 'feed', icon: Home, label: 'Post' },
+    { id: 'feed', icon: Home, label: 'Feed' },
     { id: 'search', icon: Search, label: 'Search' },
     { id: 'messages', icon: MessageSquare, label: 'Messages' },
     { id: 'profile', icon: User, label: 'Profile' },
   ];
 
-  const getAvatar = (url: string | null | undefined, username: string) => {
-    return url && url.length > 10 ? url : `https://api.dicebear.com/7.x/avataaars/svg?seed=${username || 'default'}`;
+  const getAvatar = (url: string | null | undefined, username: string | undefined) => {
+    if (url && url.length > 20) return url;
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${username || 'default'}`;
   };
 
   return (
@@ -75,7 +76,7 @@ export const Navigation: React.FC<Props> = ({ currentView, setView, profile, onL
                   >
                       <img 
                           src={getAvatar(profile.avatar_url, profile.username)} 
-                          className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-sm"
+                          className="w-10 h-10 rounded-full object-cover border border-white/20 shadow-sm bg-zinc-900"
                           alt="Avatar"
                       />
                       <div className="overflow-hidden">
@@ -102,12 +103,12 @@ export const Navigation: React.FC<Props> = ({ currentView, setView, profile, onL
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-sm bg-zinc-950 border border-white/10 p-8 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,1)] text-center"
+              className="relative w-full max-w-sm bg-zinc-950 border border-white/10 p-8 rounded-2xl shadow-2xl text-center"
             >
               <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <AlertTriangle size={32} />
               </div>
-              <h3 className="text-xl font-bold mb-2 uppercase">Log out?</h3>
+              <h3 className="text-xl font-bold mb-2 uppercase tracking-tight">Log out?</h3>
               <p className="text-zinc-500 mb-8 text-sm">You'll need to sign back in to access your feed.</p>
               <div className="flex flex-col gap-3">
                 <motion.button 
