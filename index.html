@@ -18,22 +18,23 @@
             border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        #error-display { display: none; margin-top: 24px; text-align: center; max-width: 300px; }
+        #error-display { display: none; margin-top: 24px; text-align: center; max-width: 400px; padding: 0 20px; }
+        .debug-info { margin-top: 10px; font-size: 10px; color: rgba(255, 68, 68, 0.6); font-family: monospace; word-break: break-all; background: rgba(255,0,0,0.05); padding: 8px; border-radius: 4px; line-height: 1.4; }
     </style>
     <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@19.0.0",
-        "react-dom": "https://esm.sh/react-dom@19.0.0",
-        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.48.1",
-        "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
-        "lucide-react": "https://esm.sh/lucide-react@0.475.0?external=react,react-dom",
-        "react/": "https://esm.sh/react@19.0.0/",
-        "react-dom/": "https://esm.sh/react-dom@19.0.0/"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.48.1",
+    "framer-motion": "https://esm.sh/framer-motion@11.11.17?bundle",
+    "lucide-react": "https://esm.sh/lucide-react@0.475.0?bundle",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
 </head>
 <body>
     <div id="root">
@@ -43,52 +44,56 @@
                 System Loading
             </div>
             <div id="error-display">
-                <p id="error-text" style="font-size: 12px; color: #ff4444; margin-bottom: 16px; opacity: 0.8;"></p>
-                <button onclick="localStorage.clear(); window.location.reload();" style="background: white; color: black; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 12px;">
-                    Очистить кеш и войти
-                </button>
+                <p id="error-text" style="font-size: 14px; color: #ff4444; margin-bottom: 8px; font-weight: 600;"></p>
+                <p id="error-detail" class="debug-info"></p>
+                <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="window.location.reload(true);" style="background: white; color: black; padding: 12px 24px; border-radius: 12px; font-weight: bold; font-size: 12px; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'">
+                        Повторить загрузку
+                    </button>
+                    <button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload();" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); padding: 8px; border-radius: 8px; font-size: 10px;">
+                        Очистить данные сайта
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Отлов ошибок загрузки модулей с безопасной проверкой свойств
+        // Глобальный перехват ошибок
         window.addEventListener('error', function(e) {
-            const message = e.message || '';
-            const isScriptError = e.target && e.target.tagName === 'SCRIPT';
-            
-            if (message.includes('import') || message.includes('Unexpected token') || isScriptError) {
-                const spinner = document.getElementById('spinner');
-                if (spinner) spinner.style.display = 'none';
-                
-                const loaderText = document.getElementById('loader-text');
-                if (loaderText) loaderText.innerText = 'Загрузка прервана';
-                
-                const errorDisplay = document.getElementById('error-display');
-                if (errorDisplay) errorDisplay.style.display = 'block';
-                
-                const errorText = document.getElementById('error-text');
-                if (errorText) {
-                    errorText.innerText = isScriptError 
-                        ? 'Не удалось загрузить один из компонентов системы. Проверьте соединение.' 
-                        : 'Ошибка инициализации: ' + message;
-                }
+            const spinner = document.getElementById('spinner');
+            const errorDisplay = document.getElementById('error-display');
+            const errorText = document.getElementById('error-text');
+            const errorDetail = document.getElementById('error-detail');
+            const loaderText = document.getElementById('loader-text');
+
+            // Игнорируем мелкие ошибки расширений браузера
+            if (e.message && (e.message.includes('extension') || e.message.includes('top-level-await'))) return;
+
+            if (spinner) spinner.style.display = 'none';
+            if (loaderText) loaderText.style.display = 'none';
+            if (errorDisplay) errorDisplay.style.display = 'block';
+
+            if (e.target && e.target.tagName === 'SCRIPT') {
+                errorText.innerText = 'Ошибка загрузки файлов системы';
+                errorDetail.innerText = 'Браузер не смог получить файл: ' + (e.target.src || 'index.tsx') + '. Попробуйте использовать другой браузер или отключить VPN.';
+            } else {
+                errorText.innerText = 'Критическая ошибка инициализации';
+                errorDetail.innerText = (e.message || 'Ошибка выполнения кода') + (e.filename ? ' в ' + e.filename : '');
             }
         }, true);
 
-        // Таймер-предохранитель (если за 12 секунд не загрузилось)
-        setTimeout(() => {
-            const root = document.getElementById('root');
-            const loader = root ? root.querySelector('.initial-loader') : null;
+        // Обработка ошибок сетевых запросов
+        window.onunhandledrejection = function(e) {
             const errorDisplay = document.getElementById('error-display');
-            
-            if (loader && errorDisplay && errorDisplay.style.display !== 'block') {
-                errorDisplay.style.display = 'block';
-                const loaderText = document.getElementById('loader-text');
-                if (loaderText) loaderText.innerText = 'Соединение затянулось';
-            }
-        }, 12000);
+            if (errorDisplay) errorDisplay.style.display = 'block';
+            const errorText = document.getElementById('error-text');
+            const errorDetail = document.getElementById('error-detail');
+            if (errorText) errorText.innerText = 'Сбой сетевого соединения';
+            if (errorDetail) errorDetail.innerText = 'Сервер CDN или Supabase недоступен. Проверьте интернет.';
+        };
     </script>
+    <!-- Основной вход в приложение -->
     <script type="module" src="index.tsx"></script>
 </body>
 </html>
