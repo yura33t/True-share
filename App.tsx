@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [cachedPosts, setCachedPosts] = useState<any[]>([]);
   const [currentView, setCurrentView] = useState<ViewState>('feed');
   const [initializing, setInitializing] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
   
   const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
   const [targetChatId, setTargetChatId] = useState<string | null>(null);
@@ -31,6 +32,7 @@ const App: React.FC = () => {
   const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (error) throw error;
       if (data) {
         setProfile(data);
         localStorage.setItem('ts_profile', JSON.stringify(data));
@@ -43,12 +45,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       try {
-        const { data: { session: s } } = await supabase.auth.getSession();
+        const { data: { session: s }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
         setSession(s);
         if (s) await fetchProfile(s.user.id);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Initialization failed:", err);
+        setInitError(err.message || "Failed to connect to authentication server.");
       } finally {
+        // Убеждаемся, что экран загрузки исчезнет в любом случае
         setInitializing(false);
       }
     };
@@ -57,8 +63,9 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      if (s) fetchProfile(s.user.id);
-      else {
+      if (s) {
+        fetchProfile(s.user.id);
+      } else {
         setProfile(null);
         setCachedPosts([]);
         localStorage.removeItem('ts_profile');
@@ -69,9 +76,13 @@ const App: React.FC = () => {
   }, [fetchProfile]);
 
   const handleLogout = async () => {
-    localStorage.clear();
-    await supabase.auth.signOut();
-    window.location.reload();
+    try {
+      localStorage.clear();
+      await supabase.auth.signOut();
+      window.location.reload();
+    } catch (err) {
+      window.location.reload();
+    }
   };
 
   if (initializing) {
@@ -80,9 +91,26 @@ const App: React.FC = () => {
         <motion.div 
           animate={{ rotate: 360 }} 
           transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-          className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full mb-4"
+          className="w-6 h-6 border-2 border-white/10 border-t-white rounded-full mb-4"
         />
-        <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">Initializing</p>
+        <p className="text-white/30 text-[9px] uppercase tracking-[0.3em] font-bold">Connecting</p>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-red-500/5 border border-red-500/10 p-8 rounded-3xl max-w-sm">
+          <div className="text-red-500 font-bold mb-2 uppercase text-xs tracking-widest">Connection Error</div>
+          <p className="text-white/50 text-sm mb-6 leading-relaxed">{initError}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full bg-white text-black py-3 rounded-xl font-bold text-sm hover:bg-zinc-200 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
