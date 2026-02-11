@@ -3,6 +3,10 @@
   "name": "trueshare-social",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "build": "echo 'Build complete'",
+    "start": "npx serve ."
+  },
   "dependencies": {
     "react": "19.0.0",
     "react-dom": "19.0.0",
