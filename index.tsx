@@ -3,7 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
-console.log("TrueShare: Initializing entry point...");
+console.log("TrueShare: Entry point starting...");
 
 const container = document.getElementById('root');
 
@@ -15,11 +15,15 @@ if (container) {
         <App />
       </React.StrictMode>
     );
-    console.log("TrueShare: React render called successfully");
+    // Если мы дошли до сюда, скрипт начал работу. 
+    // App.tsx сам покажет свой лоадер "Initializing", если нужно.
+    console.log("TrueShare: React render initiated");
   } catch (error) {
-    console.error("TrueShare: Fatal render error:", error);
-    container.innerHTML = `<div style="color: white; padding: 40px; text-align: center;"><h1>Initialization Failed</h1><p>${error}</p></div>`;
+    console.error("TrueShare: Render error", error);
+    container.innerHTML = `<div style="color: white; padding: 50px; text-align: center; font-family: sans-serif;">
+      <h2 style="color: #ff4444">Critical System Error</h2>
+      <p style="opacity: 0.5; font-size: 14px;">${error}</p>
+      <button onclick="window.location.reload()" style="margin-top: 20px; background: white; color: black; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">Retry</button>
+    </div>`;
   }
-} else {
-  console.error("TrueShare: Root container not found!");
 }
