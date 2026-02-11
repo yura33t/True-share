@@ -1,0 +1,7 @@
+{
+  "name": "TrueShare",
+  "description": "A premium black and white social network with real-time messaging, profile customization, and post sharing.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
