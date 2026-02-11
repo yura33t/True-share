@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './supabase';
 import { Profile, ViewState } from './types';
 import { Auth } from './components/Auth';
@@ -29,39 +29,66 @@ const App: React.FC = () => {
   const [targetChatId, setTargetChatId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<string | null>(null);
 
+  // Watchdog timeout to prevent infinite loading
+  const watchdogRef = useRef<number | null>(null);
+
   const fetchProfile = useCallback(async (userId: string) => {
+    console.log("App: Fetching profile for", userId);
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-      if (error) throw error;
+      if (error) {
+        console.error("App: Profile fetch error", error);
+        return;
+      }
       if (data) {
+        console.log("App: Profile loaded", data.username);
         setProfile(data);
         localStorage.setItem('ts_profile', JSON.stringify(data));
+      } else {
+        console.warn("App: No profile record found for user", userId);
       }
     } catch (e) {
-      console.error("Profile fetch error:", e);
+      console.error("App: Profile catch", e);
     }
   }, []);
 
   useEffect(() => {
     const initApp = async () => {
+      console.log("App: Starting initialization...");
+      
+      // Set a 6-second timeout to break infinite loading
+      watchdogRef.current = window.setTimeout(() => {
+        if (initializing) {
+          console.error("App: Initialization timed out after 6s");
+          setInitError("The server is taking too long to respond. Please check your internet connection or database status.");
+          setInitializing(false);
+        }
+      }, 6000);
+
       try {
+        console.log("App: Auth check...");
         const { data: { session: s }, error } = await supabase.auth.getSession();
+        
         if (error) throw error;
         
         setSession(s);
-        if (s) await fetchProfile(s.user.id);
+        if (s) {
+          await fetchProfile(s.user.id);
+        }
+        console.log("App: Initialization success");
       } catch (err: any) {
-        console.error("Initialization failed:", err);
-        setInitError(err.message || "Failed to connect to authentication server.");
+        console.error("App: Initialization failed", err);
+        setInitError(err.message || "Connection to Supabase failed.");
       } finally {
-        // Убеждаемся, что экран загрузки исчезнет в любом случае
+        if (watchdogRef.current) clearTimeout(watchdogRef.current);
         setInitializing(false);
       }
     };
 
     initApp();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      console.log("App: Auth event", event);
       setSession(s);
       if (s) {
         fetchProfile(s.user.id);
@@ -72,7 +99,10 @@ const App: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+        if (watchdogRef.current) clearTimeout(watchdogRef.current);
+        subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const handleLogout = async () => {
@@ -90,10 +120,13 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
         <motion.div 
           animate={{ rotate: 360 }} 
-          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-          className="w-6 h-6 border-2 border-white/10 border-t-white rounded-full mb-4"
+          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+          className="w-8 h-8 border-2 border-white/5 border-t-white rounded-full mb-6"
         />
-        <p className="text-white/30 text-[9px] uppercase tracking-[0.3em] font-bold">Connecting</p>
+        <div className="flex flex-col items-center gap-1">
+            <p className="text-white text-[10px] uppercase tracking-[0.4em] font-bold">Initializing</p>
+            <p className="text-white/20 text-[8px] uppercase tracking-widest">Secure Connection</p>
+        </div>
       </div>
     );
   }
@@ -101,14 +134,17 @@ const App: React.FC = () => {
   if (initError) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-red-500/5 border border-red-500/10 p-8 rounded-3xl max-w-sm">
-          <div className="text-red-500 font-bold mb-2 uppercase text-xs tracking-widest">Connection Error</div>
-          <p className="text-white/50 text-sm mb-6 leading-relaxed">{initError}</p>
+        <div className="bg-zinc-900 border border-white/5 p-10 rounded-[32px] max-w-sm shadow-2xl">
+          <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          </div>
+          <h2 className="text-white font-bold mb-3 text-lg uppercase tracking-tight">System Error</h2>
+          <p className="text-white/40 text-sm mb-8 leading-relaxed">{initError}</p>
           <button 
             onClick={() => window.location.reload()}
-            className="w-full bg-white text-black py-3 rounded-xl font-bold text-sm hover:bg-zinc-200 transition-colors"
+            className="w-full bg-white text-black py-4 rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-all active:scale-95"
           >
-            Try Again
+            Retry Connection
           </button>
         </div>
       </div>

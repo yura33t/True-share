@@ -26,7 +26,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Начальный загрузчик, пока JS не готов */
         .initial-loader {
             display: flex;
             flex-direction: column;
@@ -55,8 +54,8 @@
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.48.1",
     "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
     "lucide-react": "https://esm.sh/lucide-react@0.475.0?external=react,react-dom",
-    "react/": "https://esm.sh/react@19.0.0/",
-    "react-dom/": "https://esm.sh/react-dom@19.0.0/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
   }
 }
 </script>
@@ -66,7 +65,7 @@
         <div class="initial-loader">
             <div class="loader-spinner"></div>
             <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); font-weight: bold;">
-                TrueShare
+                System Loading
             </div>
         </div>
     </div>
