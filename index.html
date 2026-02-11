@@ -4,48 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrueShare | Premium Social Network</title>
+    <title>TrueShare | Social Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        html { scroll-behavior: smooth; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #000000;
-            color: #ffffff;
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #root {
-            width: 100%;
-            height: 100%;
-        }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
+        body { background-color: #000; color: #fff; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
         .initial-loader {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; background: #000; transition: opacity 0.5s ease;
         }
-        .loader-spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
+        .spinner {
+            width: 32px; height: 32px; border: 2px solid rgba(255, 255, 255, 0.05);
+            border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        #fail-safe-ui { display: none; margin-top: 20px; text-align: center; }
     </style>
-<script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
@@ -59,13 +34,43 @@
   }
 }
 </script>
+    <script>
+        // Глобальный перехват ошибок загрузки модулей
+        window.onerror = function(msg, url, line, col, error) {
+            console.error("Global Error Caught:", msg, "at", url);
+            const loader = document.querySelector('.initial-loader');
+            if (loader) {
+                loader.innerHTML = `
+                    <div style="padding: 20px; text-align: center;">
+                        <p style="color: #ff4444; font-size: 14px; margin-bottom: 20px;">Module Loading Error: ${msg}</p>
+                        <button onclick="window.location.reload()" style="background: white; color: black; padding: 10px 20px; border-radius: 8px; font-weight: bold;">Retry</button>
+                    </div>
+                `;
+            }
+            return false;
+        };
+
+        // Если через 8 секунд приложение не запустится, показать кнопку помощи
+        setTimeout(() => {
+            const root = document.getElementById('root');
+            if (root && root.children.length <= 1) { // Значит там только наш лоадер
+                document.getElementById('fail-safe-ui').style.display = 'block';
+            }
+        }, 8000);
+    </script>
 </head>
 <body>
     <div id="root">
         <div class="initial-loader">
-            <div class="loader-spinner"></div>
-            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); font-weight: bold;">
-                System Loading
+            <div class="spinner"></div>
+            <div style="margin-top: 20px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3em; color: rgba(255,255,255,0.3); font-weight: bold;">
+                System Booting
+            </div>
+            <div id="fail-safe-ui">
+                <p style="font-size: 11px; color: rgba(255,255,255,0.2); margin-bottom: 12px;">Connection taking longer than usual</p>
+                <button onclick="localStorage.clear(); window.location.reload();" style="font-size: 10px; border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 6px; color: rgba(255,255,255,0.5);">
+                    Force Reload
+                </button>
             </div>
         </div>
     </div>
